@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wingmann - All Compatibility Scores</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <nav class="top-nav">
+            <a href="/" class="nav-link">Add User</a>
+            <a href="/all-compatibility" class="nav-link active">View All Compatibility</a>
+            <a href="/api/json-data" class="nav-link" target="_blank">View JSON Data</a>
+        </nav>
+        <div class="header">
+            <h1>Wingmann</h1>
+            <p class="subtitle">Compatibility Matrix</p>
+        </div>
+
+        <div class="results-container">
+            <div class="results-header">
+                <h2>User Compatibility Scores</h2>
+                <p class="subtitle">Select a user to view their compatibility scores</p>
+                
+                <div class="user-select-section">
+                    <label for="userSelect" class="select-label">Select User:</label>
+                    <select id="userSelect" class="user-select" onchange="loadCompatibility()">
+                        <option value="">All Users</option>
+                    </select>
+                    <button onclick="loadCompatibility()" class="refresh-btn">Refresh</button>
+                </div>
+            </div>
+
+            <div id="loading" class="loading-message">Loading compatibility scores...</div>
+            <div id="compatibilityList" class="results-list" style="display: none;">
+                
+            </div>
+            <div id="noCompatibility" class="no-results" style="display: none;">
+                <h3>No compatibility data available</h3>
+                <p>Add at least 2 users to see compatibility scores.</p>
+                <a href="/" class="back-btn">Add Users</a>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="analysisModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Detailed Compatibility Analysis</h2>
+                <span class="close-modal" onclick="closeAnalysisModal()">&times;</span>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <div class="loading-message">Loading analysis...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadUsers() {
+            try {
+                const response = await fetch('/api/users');
+                const users = await response.json();
+                
+                const userSelect = document.getElementById('userSelect');
+                
+                userSelect.innerHTML = '<option value="">All Users</option>';
+                
+                
+                users.forEach(user => {
+                    const option = document.createElement('option');
+                    option.value = user.id;
+                    option.textContent = `${user.name} (${user.gender})`;
+                    userSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading users:', error);
+            }
+        }
+
+        async function loadCompatibility() {
+            const loading = document.getElementById('loading');
+            const compatibilityList = document.getElementById('compatibilityList');
+            const noCompatibility = document.getElementById('noCompatibility');
+            const userSelect = document.getElementById('userSelect');
+            const selectedUserId = userSelect.value;
+
+            loading.style.display = 'block';
+            compatibilityList.style.display = 'none';
+            noCompatibility.style.display = 'none';
+
+            try {
+                let url = '/api/compatibility/all';
+                if (selectedUserId) {
+                    url += `?user_id=${selectedUserId}`;
+                }
+                
+                const response = await fetch(url);
+                const data = await response.json();
+
+                loading.style.display = 'none';
+
+                if (data.length === 0) {
+                    noCompatibility.style.display = 'block';
+                    if (selectedUserId) {
+                        noCompatibility.innerHTML = '<h3>No compatibility matches found</h3><p>This user has no matches with users of the opposite gender.</p>';
+                    } else {
+                        noCompatibility.innerHTML = '<h3>No compatibility data available</h3><p>Add at least 2 users of opposite genders to see compatibility scores.</p><a href="/" class="back-btn">Add Users</a>';
+                    }
+                    return;
+                }
+
+                compatibilityList.innerHTML = '';
+                
+               
+                const headerSubtitle = document.querySelector('.results-header .subtitle');
+                if (selectedUserId) {
+                    const selectedUser = userSelect.options[userSelect.selectedIndex].text;
+                    headerSubtitle.textContent = `Compatibility scores for ${selectedUser}`;
+                } else {
+                    headerSubtitle.textContent = 'Scores between all users in the database';
+                }
+                
+                data.forEach((item, index) => {
+                    const resultCard = document.createElement('div');
+                    resultCard.className = 'result-card compatibility-card';
+                    resultCard.style.animationDelay = `${index * 0.05}s`;
+                    
+                    const scoreColor = item.score >= 70 ? 'var(--success)' : 
+                                      item.score >= 50 ? 'var(--warning)' : 
+                                      'var(--text-secondary)';
+
+                    // If a specific user is selected, show them first
+                    let displayUser1 = item.user1;
+                    let displayUser2 = item.user2;
+                    
+                    if (selectedUserId) {
+                        // Selected user should always be user1
+                        if (item.user2.id == selectedUserId) {
+                            displayUser1 = item.user2;
+                            displayUser2 = item.user1;
+                        }
+                    }
+
+                    resultCard.innerHTML = `
+                        <div class="compatibility-pair">
+                            <div class="user-info">
+                                <span class="user-name">${displayUser1.name}</span>
+                                <span class="user-gender">${displayUser1.gender}</span>
+                            </div>
+                            <div class="vs-divider">vs</div>
+                            <div class="user-info">
+                                <span class="user-name">${displayUser2.name}</span>
+                                <span class="user-gender">${displayUser2.gender}</span>
+                            </div>
+                        </div>
+                        <div class="compatibility-score-section">
+                            <div class="result-score clickable-score" 
+                                 style="color: ${scoreColor}" 
+                                 onclick="showDetailedAnalysis(${displayUser1.id}, ${displayUser2.id})"
+                                 title="Click for detailed analysis">
+                                ${item.score}%
+                            </div>
+                            <div class="score-bar">
+                                <div class="score-fill" style="width: ${item.score}%; background: ${scoreColor};"></div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    compatibilityList.appendChild(resultCard);
+                });
+
+                compatibilityList.style.display = 'flex';
+            } catch (error) {
+                console.error('Error:', error);
+                loading.style.display = 'none';
+                noCompatibility.style.display = 'block';
+                noCompatibility.innerHTML = '<h3>Error loading compatibility scores</h3><p>Please try again later.</p>';
+            }
+        }
+
+        async function showDetailedAnalysis(user1Id, user2Id) {
+            const modal = document.getElementById('analysisModal');
+            const modalBody = document.getElementById('modalBody');
+            
+            modal.style.display = 'block';
+            modalBody.innerHTML = '<div class="loading-message">Loading detailed analysis...</div>';
+            
+            try {
+                const response = await fetch(`/api/compatibility/detailed?user1_id=${user1Id}&user2_id=${user2Id}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    modalBody.innerHTML = `<div class="error-message">${data.error}</div>`;
+                    return;
+                }
+                
+                const { user1, user2, analysis } = data;
+                
+                let html = `
+                    <div class="analysis-header">
+                        <div class="analysis-users">
+                            <div class="analysis-user">
+                                <h3>${user1.name}</h3>
+                                <span class="user-gender">${user1.gender}</span>
+                            </div>
+                            <div class="vs-divider">vs</div>
+                            <div class="analysis-user">
+                                <h3>${user2.name}</h3>
+                                <span class="user-gender">${user2.gender}</span>
+                            </div>
+                        </div>
+                        <div class="overall-score">
+                            <div class="score-large">${analysis.percentage}%</div>
+                            <div class="score-details">${analysis.total_score} / ${analysis.max_possible_score} points</div>
+                        </div>
+                    </div>
+                    
+                    <div class="breakdown-section">
+                        <h3>Question-by-Question Breakdown</h3>
+                        <div class="breakdown-list">
+                `;
+                
+                analysis.breakdown.forEach((item, index) => {
+                    const levelColors = {
+                        'high': 'var(--success)',
+                        'moderate': 'var(--warning)',
+                        'low': 'var(--error)'
+                    };
+                    
+                    const levelLabels = {
+                        'high': 'High Compatibility',
+                        'moderate': 'Moderate Compatibility',
+                        'low': 'Low Compatibility'
+                    };
+                    
+                    const color = levelColors[item.compatibility_level];
+                    const percentage = ((item.question_score / item.max_possible_score) * 100).toFixed(0);
+                    
+                    html += `
+                        <div class="breakdown-item">
+                            <div class="breakdown-question">
+                                <span class="question-num">Q${item.question_num}</span>
+                                <span class="question-text">${item.question_text}</span>
+                            </div>
+                            <div class="breakdown-details">
+                                <div class="breakdown-answers">
+                                    <span class="answer-label">User 1:</span> <span class="answer-value">${item.user1_answer}</span>
+                                    <span class="answer-separator">|</span>
+                                    <span class="answer-label">User 2:</span> <span class="answer-value">${item.user2_answer}</span>
+                                </div>
+                                <div class="breakdown-score">
+                                    <span class="compatibility-level" style="color: ${color}">
+                                        ${levelLabels[item.compatibility_level]}
+                                    </span>
+                                    <span class="score-info">
+                                        ${item.question_score} / ${item.max_possible_score} points 
+                                        (Weight: ${item.weight}, Multiplier: ${item.compatibility_value}x)
+                                        <span class="multiplier-explanation" title="High=2x, Moderate=1x, Low=0x">ℹ️</span>
+                                    </span>
+                                </div>
+                                <div class="breakdown-bar">
+                                    <div class="breakdown-bar-fill" style="width: ${percentage}%; background: ${color};"></div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                        </div>
+                    </div>
+                `;
+                
+                modalBody.innerHTML = html;
+            } catch (error) {
+                console.error('Error loading detailed analysis:', error);
+                modalBody.innerHTML = '<div class="error-message">Error loading detailed analysis. Please try again.</div>';
+            }
+        }
+        
+        function closeAnalysisModal() {
+            document.getElementById('analysisModal').style.display = 'none';
+        }
+        
+        
+        window.onclick = function(event) {
+            const modal = document.getElementById('analysisModal');
+            if (event.target == modal) {
+                closeAnalysisModal();
+            }
+        }
+
+       
+        document.addEventListener('DOMContentLoaded', function() {
+            loadUsers();
+            loadCompatibility();
+        });
+    </script>
+</body>
+</html>
+

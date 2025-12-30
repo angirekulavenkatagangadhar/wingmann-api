@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Wingmann - Dating App</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Top Header -->
+        <header class="app-header">
+            <h1 class="app-logo">Wingmann</h1>
+            <button class="header-btn" onclick="showAddUserModal()">+ Add User</button>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="main-content" id="mainContent">
+            <!-- Discover/Recommended Section -->
+            <section id="discoverSection" class="content-section active">
+                <div class="section-header-compact">
+                    <h2>Discover</h2>
+                    <select id="discoverUserSelect" class="user-select-small" onchange="loadRecommendedProfiles()">
+                        <option value="">Select User</option>
+                    </select>
+                </div>
+                <div id="discoverContent" class="discover-content">
+                    <div class="empty-state">
+                        <p>Select a user to see recommended profiles</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Search/Compatibility Section -->
+            <section id="searchSection" class="content-section">
+                <div class="section-header-compact">
+                    <h2>Search</h2>
+                    <select id="searchUserSelect" class="user-select-small" onchange="loadCompatibility()">
+                        <option value="">Select User</option>
+                    </select>
+                </div>
+                <div id="compatibilityContent" class="compatibility-content">
+                    <div class="empty-state">
+                        <p>Select a user to find their compatibility matches</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Messaging Section -->
+            <section id="messagingSection" class="content-section">
+                <div class="section-header-compact">
+                    <h2>Messages</h2>
+                    <select id="messageUserSelect" class="user-select-small" onchange="loadMessages()">
+                        <option value="">Select User</option>
+                    </select>
+                </div>
+                <div id="messagesContent" class="messages-content">
+                    <div class="empty-state">
+                        <p>Select a user to view their messages</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Profile Section -->
+            <section id="profileSection" class="content-section">
+                <div class="section-header-compact">
+                    <h2>Profile</h2>
+                    <select id="profileUserSelect" class="user-select-small" onchange="loadProfile()">
+                        <option value="">Select User</option>
+                    </select>
+                </div>
+                <div id="profileContent" class="profile-content">
+                    <div class="empty-state">
+                        <p>Select a user to view their profile</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <button class="nav-item active" onclick="showSection('discoverSection')">
+                <span class="nav-icon">🔍</span>
+                <span class="nav-label">Discover</span>
+            </button>
+            <button class="nav-item" onclick="showSection('searchSection')">
+                <span class="nav-icon">💕</span>
+                <span class="nav-label">Matches</span>
+            </button>
+            <button class="nav-item" onclick="showSection('messagingSection')">
+                <span class="nav-icon">💬</span>
+                <span class="nav-label">Messages</span>
+            </button>
+            <button class="nav-item" onclick="showSection('profileSection')">
+                <span class="nav-icon">👤</span>
+                <span class="nav-label">Profile</span>
+            </button>
+        </nav>
+    </div>
+
+    
+    <div id="addUserModal" class="modal" style="display: none;">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>Add New User</h2>
+                <span class="close-modal" onclick="closeAddUserModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <iframe src="/add-user" style="width: 100%; height: 80vh; border: none;"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
+

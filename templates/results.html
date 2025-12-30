@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wingmann - Compatibility Results</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <nav class="top-nav">
+            <a href="/" class="nav-link">Add User</a>
+            <a href="/all-compatibility" class="nav-link">View All Compatibility</a>
+            <a href="/api/json-data" class="nav-link" target="_blank">View JSON Data</a>
+        </nav>
+        <div class="header">
+            <h1>Wingmann</h1>
+            <p class="subtitle">Your Compatibility Results</p>
+        </div>
+
+        <div class="results-container">
+            <div class="results-header">
+                <h2>Compatibility Scores</h2>
+                <p class="subtitle" id="userGreeting">Finding your perfect match...</p>
+            </div>
+
+            <div id="resultsList" class="results-list">
+            </div>
+
+            <div id="noResults" class="no-results" style="display: none;">
+                <h3>No matches found</h3>
+                <p>There are no users of the opposite gender in the database yet.</p>
+                <a href="/" class="back-btn">Take Assessment Again</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get results from sessionStorage
+        const results = JSON.parse(sessionStorage.getItem('compatibilityResults') || '[]');
+        const userName = sessionStorage.getItem('userName') || 'User';
+        
+        const resultsList = document.getElementById('resultsList');
+        const noResults = document.getElementById('noResults');
+        const userGreeting = document.getElementById('userGreeting');
+
+        userGreeting.textContent = `Hello ${userName}, here are your compatibility scores:`;
+
+        if (results.length === 0) {
+            resultsList.style.display = 'none';
+            noResults.style.display = 'block';
+        } else {
+            results.forEach((result, index) => {
+                const resultCard = document.createElement('div');
+                resultCard.className = 'result-card';
+                resultCard.style.animationDelay = `${index * 0.1}s`;
+                
+                const scoreColor = result.score >= 70 ? 'var(--success)' : 
+                                  result.score >= 50 ? 'var(--warning)' : 
+                                  'var(--text-secondary)';
+
+                resultCard.innerHTML = `
+                    <div>
+                        <div class="result-name">${result.name}</div>
+                        <div class="score-bar">
+                            <div class="score-fill" style="width: ${result.score}%; background: ${scoreColor};"></div>
+                        </div>
+                    </div>
+                    <div class="result-score">${result.score}%</div>
+                `;
+                
+                resultsList.appendChild(resultCard);
+            });
+
+            // Add back button
+            const backBtn = document.createElement('div');
+            backBtn.style.textAlign = 'center';
+            backBtn.style.marginTop = '30px';
+            backBtn.innerHTML = '<a href="/" class="back-btn">Take Assessment Again</a>';
+            resultsList.appendChild(backBtn);
+        }
+
+
+    </script>
+</body>
+</html>
+
