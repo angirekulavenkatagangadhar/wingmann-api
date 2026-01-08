@@ -1,13 +1,17 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 import sqlite3
 import json
-import re
 import os
-from datetime import datetime
-from functools import wraps
+from functools import lru_cache
 from collections import OrderedDict
 
 app = Flask(__name__)
+# Enable CORS for all routes - allows external systems to call the API
+CORS(app)
+
+# Performance: Enable SQLite connection optimizations
+sqlite3.enable_callback_tracebacks(False)
 
 # JSON file path
 JSON_DATA_FILE = 'users_data.json'
@@ -31,40 +35,6 @@ def init_json_file():
     if not os.path.exists(JSON_DATA_FILE):
         with open(JSON_DATA_FILE, 'w') as f:
             json.dump([], f)
-
-def save_to_json(user_data):
-    """Save user data to JSON file"""
-    if os.path.exists(JSON_DATA_FILE):
-        with open(JSON_DATA_FILE, 'r') as f:
-            users = json.load(f)
-    else:
-        users = []
-    
-    if 'answers' in user_data and isinstance(user_data['answers'], dict):
-        sorted_items = sorted(user_data['answers'].items(), key=lambda x: int(x[0]))
-        user_data['answers'] = OrderedDict(sorted_items)
-    
-    users.append(user_data)
-    
-    for user in users:
-        if 'answers' in user and isinstance(user['answers'], dict):
-            sorted_items = sorted(user['answers'].items(), key=lambda x: int(x[0]))
-            user['answers'] = OrderedDict(sorted_items)
-    
-    with open(JSON_DATA_FILE, 'w') as f:
-        json.dump(users, f, indent=2, ensure_ascii=False)
-
-def get_all_users_from_json():
-    """Get all users from JSON file"""
-    if os.path.exists(JSON_DATA_FILE):
-        with open(JSON_DATA_FILE, 'r') as f:
-            users = json.load(f)
-            for user in users:
-                if 'answers' in user and isinstance(user['answers'], dict):
-                    sorted_items = sorted(user['answers'].items(), key=lambda x: int(x[0]))
-                    user['answers'] = OrderedDict(sorted_items)
-            return users
-    return []
 
 init_db()
 init_json_file()
@@ -207,197 +177,6 @@ MATCHING_RULES = {
         "low": [(1,4),(2,4)]
     }
 }
-
-# NLP categories for Question 5
-Q5_CATEGORIES = {
-    1: ["love", "care", "affection", "warmth", "emotional support", "kindness", "compassion", "maturity"],
-    2: ["honesty", "loyalty", "transparency", "dependability", "faithfulness", "reliability"],
-    3: ["openness", "communication", "listening", "understanding", "expressing emotions", "patience"],
-    4: ["support", "respect", "equality", "appreciation", "independence", "space", "boundaries"],
-    5: ["growth", "teamwork", "understanding", "adaptive", "flexible", "supporting goals", "solving"],
-    6: ["sex", "sharing experiences", "adventure", "chemistry", "humour", "humor", "emotional connection"],
-    7: ["commitment", "safety", "consistency", "partnership", "togetherness"]
-}
-
-QUESTION_OPTIONS = {
-    1: {
-        1: "Relaxing at home",
-        2: "Going out with friends or exploring new places",
-        3: "Doing something productive",
-        4: "Mixing it up depending on my mood",
-    },
-    2: {
-        1: "Putting it all together",
-        2: "Keeping our own accounts but being open about stuff",
-        3: "Splitting things in a way that feels fair for both",
-        4: "Keeping finances totally separate",
-    },
-    3: {
-        1: "1 - Completely Disagree",
-        2: "2",
-        3: "3",
-        4: "4",
-        5: "5 - Completely Agree",
-    },
-    4: {
-        1: "1 - Completely Disagree",
-        2: "2",
-        3: "3",
-        4: "4",
-        5: "5 - Completely Agree",
-    },
-    6: {
-        1: "Stay quiet and think",
-        2: "Talk things through right away",
-        3: "Distract myself until I feel calmer",
-        4: "Wait for the other person to reach out first",
-    },
-    7: {
-        1: "Spending quality time together",
-        2: "Giving thoughtful gifts",
-        3: "Checking in and making sure they are okay",
-        4: "Doing things to help or support them",
-    },
-    8: {
-        1: "1 - Completely Disagree",
-        2: "2",
-        3: "3",
-        4: "4",
-        5: "5 - Completely Agree",
-    },
-    9: {
-        1: "1 - Completely Disagree",
-        2: "2",
-        3: "3",
-        4: "4",
-        5: "5 - Completely Agree",
-    },
-    10: {
-        1: "1 - Completely Disagree",
-        2: "2",
-        3: "3",
-        4: "4",
-        5: "5 - Completely Agree",
-    },
-    11: {
-        1: "1 - Completely Disagree",
-        2: "2",
-        3: "3",
-        4: "4",
-        5: "5 - Completely Agree",
-    },
-    12: {
-        1: "1 - Completely Disagree",
-        2: "2",
-        3: "3",
-        4: "4",
-        5: "5 - Completely Agree",
-    },
-    13: {
-        1: "1 - Completely Disagree",
-        2: "2",
-        3: "3",
-        4: "4",
-        5: "5 - Completely Agree",
-    },
-    14: {
-        1: "Take some time alone to recharge and think",
-        2: "Talk it out with someone I trust",
-        3: "Distract myself with music, shows, or hobbies",
-        4: "Try to stay busy and push through it",
-    },
-    15: {
-        1: "Calm – they're probably busy",
-        2: "Anxious – did I say something wrong?",
-        3: "Unbothered – I'll reply later too",
-        4: "Irritated – communication should be consistent",
-    },
-    16: {
-        1: "1 - Completely Disagree",
-        2: "2",
-        3: "3",
-        4: "4",
-        5: "5 - Completely Agree",
-    },
-    17: {
-        1: "1 - Completely Disagree",
-        2: "2",
-        3: "3",
-        4: "4",
-        5: "5 - Completely Agree",
-    },
-    18: {
-        1: "Avoid it until things calm down",
-        2: "Address it right away",
-        3: "Compromise quickly to move on",
-        4: "Reflect before bringing it up",
-    },
-    19: {
-        1: "1 - Completely Disagree",
-        2: "2",
-        3: "3",
-        4: "4",
-        5: "5 - Completely Agree",
-    },
-    20: {
-        1: "1 - Completely Disagree",
-        2: "2",
-        3: "3",
-        4: "4",
-        5: "5 - Completely Agree",
-    },
-    21: {
-        1: "1 - Completely Disagree",
-        2: "2",
-        3: "3",
-        4: "4",
-        5: "5 - Completely Agree",
-    },
-    22: {
-        1: "1 - Completely Disagree",
-        2: "2",
-        3: "3",
-        4: "4",
-        5: "5 - Completely Agree",
-    },
-    23: {
-        1: "1 - Completely Disagree",
-        2: "2",
-        3: "3",
-        4: "4",
-        5: "5 - Completely Agree",
-    },
-    24: {
-        1: "Ready to build something meaningful",
-        2: "Open but cautious",
-        3: "Still exploring what I really want",
-        4: "Healing and taking things slow",
-    },
-    25: {
-        1: "My past relationships",
-        2: "Watching family or friends",
-        3: "Personal growth and self reflection",
-        4: "Movies, books, or social media",
-    },
-}
-
-
-def get_answer_label(question_num: int, raw_value):
-    """Return human-readable label for an answer, falling back to the raw value."""
-    
-    if question_num == 5:
-        return str(raw_value)
-
-    try:
-        key = int(raw_value)
-    except (TypeError, ValueError):
-        return str(raw_value)
-
-    options = QUESTION_OPTIONS.get(question_num)
-    if options is None:
-        return str(raw_value)
-
-    return options.get(key, str(raw_value))
 
 def categorize_q5_answer(text):
     """Categorize descriptive answer for Question 5 using semantic analysis
@@ -560,35 +339,6 @@ def calculate_compatibility(user1_answers, user2_answers, detailed=False):
     total_score = 0
     breakdown = []
     
-    # Question texts for display
-    QUESTION_TEXTS = {
-        1: "How do you usually like to spend your weekends?",
-        2: "When it comes to managing money as a couple, I prefer:",
-        3: "I feel most balanced when my partner and I have similar daily habits and energy levels.",
-        4: "If I had to choose between spending time on my goals or my relationship, I'd usually choose my goals.",
-        5: "What's one thing that really matters to you in a relationship?",
-        6: "When I'm upset, I tend to:",
-        7: "When you care about someone, you usually show it through:",
-        8: "I pick up on changes in someone's mood quickly.",
-        9: "I can express how I feel even when it might cause disagreement.",
-        10: "When my partner withdraws during a disagreement, I usually want to reach out and reconnect.",
-        11: "I sometimes worry that my partner might lose interest or drift away.",
-        12: "I love emotional closeness, but too much of it can make me want space.",
-        13: "Even with someone I trust, I sometimes hold back my true feelings.",
-        14: "When I feel overwhelmed, I usually:",
-        15: "If someone you're dating doesn't text back for hours, what's your first reaction?",
-        16: "I feel safe sharing my feelings when I know I won't be judged.",
-        17: "After a disagreement, I'm usually the one to take the first step toward making things right.",
-        18: "When conflict arises, I tend to:",
-        19: "I often focus more on being right than on being understood.",
-        20: "I find it difficult to stay calm when I feel misunderstood.",
-        21: "I believe relationships help both people grow.",
-        22: "When I realize I've hurt someone, I try to take responsibility and reconnect.",
-        23: "I rarely talk about my feelings and emotions.",
-        24: "Which best describes how you feel about relationships right now?",
-        25: "I've learned the most about relationships from:"
-    }
-    
     for q_num in range(1, 26):
         weight = QUESTION_WEIGHTS[q_num]
         answer1 = user1_answers.get(str(q_num))
@@ -628,19 +378,15 @@ def calculate_compatibility(user1_answers, user2_answers, detailed=False):
         total_score += question_score
         
         if detailed:
-            display_answer1 = get_answer_label(q_num, original_answer1)
-            display_answer2 = get_answer_label(q_num, original_answer2)
-
             breakdown.append({
                 'question_num': q_num,
-                'question_text': QUESTION_TEXTS.get(q_num, f"Question {q_num}"),
                 'weight': weight,
-                'user1_answer': display_answer1,
-                'user2_answer': display_answer2,
+                'user1_answer': str(original_answer1),
+                'user2_answer': str(original_answer2),
                 'compatibility_level': level,
                 'compatibility_value': compatibility_value,
                 'question_score': question_score,
-                'max_possible_score': weight * 2  # Max is high compatibility (2)
+                'max_possible_score': weight * 2
             })
     
     percentage = (total_score / 200) * 100
@@ -655,265 +401,131 @@ def calculate_compatibility(user1_answers, user2_answers, detailed=False):
     else:
         return round(percentage, 2)
 
-@app.route('/')
-def index():
-    return render_template('home.html')
+# API Routes
 
-@app.route('/submit', methods=['POST'])
-def submit():
+@app.route('/', methods=['GET'])
+def index():
+    """Root endpoint - API information"""
+    return jsonify({
+        'service': 'Wingmann Compatibility API',
+        'version': '1.0',
+        'endpoints': {
+            'POST /api/compatibility/batch': 'Calculate compatibility scores between a user and multiple other users',
+            'GET /health': 'Health check endpoint'
+        },
+        'documentation': 'See API_DOCUMENTATION.md for detailed usage'
+    })
+
+@app.route('/api/compatibility/batch', methods=['POST'])
+def get_batch_compatibility():
+    """Get compatibility scores between a user and multiple other users
+    
+    Request body (JSON):
+    {
+        "user_id": 1,
+        "answers": {
+            "1": "2",
+            "2": "1",
+            ...
+            "25": "1"
+        },
+        "other_user_ids": [3, 5, 8]
+    }
+    
+    Returns:
+    {
+        "user_id": 1,
+        "compatibility_scores": [
+            {"other_user_id": 3, "score": 75.5},
+            {"other_user_id": 5, "score": 82.3},
+            {"other_user_id": 8, "score": 68.2}
+        ]
+    }
+    """
     try:
         data = request.json
         if not data:
-            return jsonify({'success': False, 'error': 'No data received'}), 400
+            return jsonify({'error': 'No data received'}), 400
         
-        name = data.get('name')
-        gender = data.get('gender')
-        phone = data.get('phone')
-        answers = data.get('answers', {})
+        user_id = data.get('user_id')
+        user_answers = data.get('answers')
+        other_user_ids = data.get('other_user_ids', [])
         
-        # Validate required fields
-        if not name or not gender or not phone:
-            return jsonify({'success': False, 'error': 'Missing required fields (name, gender, phone)'}), 400
+        # Validate input
+        if not user_id:
+            return jsonify({'error': 'user_id is required'}), 400
         
-        if not answers or len(answers) != 25:
-            return jsonify({'success': False, 'error': f'Invalid number of answers. Expected 25, got {len(answers)}'}), 400
+        if not user_answers or not isinstance(user_answers, dict):
+            return jsonify({'error': 'answers must be a dictionary with question numbers as keys'}), 400
         
-        # Prepare user data
-        user_data = {
-            'name': name,
-            'gender': gender,
-            'phone': phone,
-            'answers': answers,
-            'created_at': datetime.now().isoformat()
-        }
+        if not other_user_ids or not isinstance(other_user_ids, list):
+            return jsonify({'error': 'other_user_ids must be a list of user IDs'}), 400
         
-        # Save user to SQLite database
-        conn = sqlite3.connect(DB_FILE)
+        if len(other_user_ids) == 0:
+            return jsonify({'error': 'other_user_ids cannot be empty'}), 400
+        
+        # Connect to database with optimizations for speed
+        conn = sqlite3.connect(DB_FILE, check_same_thread=False)
+        # Performance: Enable row factory for faster access
+        conn.row_factory = sqlite3.Row
         c = conn.cursor()
-        c.execute('INSERT INTO users (name, gender, phone, answers) VALUES (?, ?, ?, ?)',
-                  (name, gender, phone, json.dumps(answers)))
-        user_id = c.lastrowid
-        conn.commit()
-        conn.close()
         
-        # Add ID to user_data and save to JSON
-        user_data['id'] = user_id
-        # Sort answers by question number before saving
-        sorted_answers = OrderedDict(sorted(answers.items(), key=lambda x: int(x[0])))
-        user_data['answers'] = dict(sorted_answers)
-        save_to_json(user_data)
-        
-        # Get all other users of opposite gender
-        opposite_gender = 'Female' if gender == 'Male' else 'Male'
-        conn = sqlite3.connect(DB_FILE)
-        c = conn.cursor()
-        c.execute('SELECT id, name, answers FROM users WHERE gender = ? AND id != ?',
-                  (opposite_gender, user_id))
+        # Fetch other users from database - optimized single query
+        placeholders = ','.join(['?'] * len(other_user_ids))
+        c.execute(f'SELECT id, name, gender, answers FROM users WHERE id IN ({placeholders})', other_user_ids)
         other_users = c.fetchall()
         conn.close()
         
-        # Calculate compatibility scores
+        # Check if all requested users were found
+        found_user_ids = {user[0] for user in other_users}
+        missing_user_ids = set(other_user_ids) - found_user_ids
+        
+        if missing_user_ids:
+            return jsonify({
+                'error': f'Users not found: {list(missing_user_ids)}'
+            }), 404
+        
+        # Calculate compatibility scores - optimized for speed
         compatibility_scores = []
+        
+        # Pre-parse JSON answers once for all users
         for other_user in other_users:
-            other_id, other_name, other_answers_json = other_user
-            other_answers = json.loads(other_answers_json)
-            score = calculate_compatibility(answers, other_answers)
+            other_user_id = other_user[0]
+            other_user_answers_json = other_user[3]
+            
+            # Fast JSON parsing
+            try:
+                other_user_answers = json.loads(other_user_answers_json)
+            except json.JSONDecodeError:
+                continue
+            
+            # Calculate compatibility score
+            score = calculate_compatibility(user_answers, other_user_answers, detailed=False)
+            
             compatibility_scores.append({
-                'id': other_id,
-                'name': other_name,
+                'other_user_id': other_user_id,
                 'score': score
             })
         
-        # Sort by score descending
+        # Sort by score (highest first) - in-place sort for speed
         compatibility_scores.sort(key=lambda x: x['score'], reverse=True)
         
         return jsonify({
-            'success': True,
-            'scores': compatibility_scores
+            'user_id': user_id,
+            'compatibility_scores': compatibility_scores
         })
+    
+    except json.JSONDecodeError:
+        return jsonify({'error': 'Invalid JSON in request body'}), 400
     except Exception as e:
-        import traceback
-        error_trace = traceback.format_exc()
-        print(f"Error in submit endpoint: {error_trace}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return jsonify({'error': f'An error occurred: {str(e)}'}), 500
 
-@app.route('/results')
-def results():
-    return render_template('results.html')
-
-@app.route('/add-user')
-def add_user():
-    """Page to add a new user"""
-    return render_template('add_user.html')
-
-@app.route('/all-compatibility')
-def all_compatibility():
-    """Page showing compatibility scores between all users"""
-    return render_template('all_compatibility.html')
-
-@app.route('/api/users', methods=['GET'])
-def get_users():
-    """Get all users from database"""
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute('SELECT id, name, gender, phone, answers, created_at FROM users ORDER BY created_at DESC')
-    users = []
-    for row in c.fetchall():
-        users.append({
-            'id': row[0],
-            'name': row[1],
-            'gender': row[2],
-            'phone': row[3],
-            'answers': json.loads(row[4]),
-            'created_at': row[5]
-        })
-    conn.close()
-    return jsonify(users)
-
-@app.route('/api/compatibility/all', methods=['GET'])
-def get_all_compatibility():
-    """Get compatibility scores between all users (only opposite genders)"""
-    user_id = request.args.get('user_id', type=int)
-    
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute('SELECT id, name, gender, answers FROM users')
-    all_users = c.fetchall()
-    conn.close()
-    
-    compatibility_matrix = []
-    
-    # If user_id is provided, only show compatibility for that user
-    if user_id:
-        # Find the selected user
-        selected_user = None
-        for user in all_users:
-            if user[0] == user_id:
-                selected_user = user
-                break
-        
-        if not selected_user:
-            return jsonify({'error': 'User not found'}), 404
-        
-        user1_id, user1_name, user1_gender, user1_answers_json = selected_user
-        user1_answers = json.loads(user1_answers_json)
-        
-        # Calculate compatibility with all other users of opposite gender
-        for user2 in all_users:
-            user2_id, user2_name, user2_gender, user2_answers_json = user2
-            
-            # Skip same user and same gender
-            if user2_id != user1_id and user1_gender != user2_gender:
-                user2_answers = json.loads(user2_answers_json)
-                score = calculate_compatibility(user1_answers, user2_answers)
-                
-                compatibility_matrix.append({
-                    'user1': {
-                        'id': user1_id,
-                        'name': user1_name,
-                        'gender': user1_gender
-                    },
-                    'user2': {
-                        'id': user2_id,
-                        'name': user2_name,
-                        'gender': user2_gender
-                    },
-                    'score': score
-                })
-    else:
-        # Show all compatibility pairs
-        for i, user1 in enumerate(all_users):
-            user1_id, user1_name, user1_gender, user1_answers_json = user1
-            user1_answers = json.loads(user1_answers_json)
-            
-            for j, user2 in enumerate(all_users):
-                if i < j:  # Only calculate once for each pair
-                    user2_id, user2_name, user2_gender, user2_answers_json = user2
-                    user2_answers = json.loads(user2_answers_json)
-                    
-                    # Only calculate compatibility for opposite genders
-                    if user1_gender != user2_gender:
-                        score = calculate_compatibility(user1_answers, user2_answers)
-                        
-                        compatibility_matrix.append({
-                            'user1': {
-                                'id': user1_id,
-                                'name': user1_name,
-                                'gender': user1_gender
-                            },
-                            'user2': {
-                                'id': user2_id,
-                                'name': user2_name,
-                                'gender': user2_gender
-                            },
-                            'score': score
-                        })
-    
-    # Sort by score descending
-    compatibility_matrix.sort(key=lambda x: x['score'], reverse=True)
-    
-    return jsonify(compatibility_matrix)
-
-@app.route('/api/json-data', methods=['GET'])
-def get_json_data():
-    """Get all users from JSON file"""
-    users = get_all_users_from_json()
-    # Re-save with sorted answers to fix any existing data
-    if users:
-        with open(JSON_DATA_FILE, 'w') as f:
-            json.dump(users, f, indent=2, ensure_ascii=False)
-    return jsonify(users)
-
-@app.route('/api/compatibility/detailed', methods=['GET'])
-def get_detailed_compatibility():
-    """Get detailed compatibility analysis between two users"""
-    user1_id = request.args.get('user1_id', type=int)
-    user2_id = request.args.get('user2_id', type=int)
-    
-    if not user1_id or not user2_id:
-        return jsonify({'error': 'Both user1_id and user2_id are required'}), 400
-    
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    
-    # Get user1 data
-    c.execute('SELECT id, name, gender, answers FROM users WHERE id = ?', (user1_id,))
-    user1_data = c.fetchone()
-    
-    # Get user2 data
-    c.execute('SELECT id, name, gender, answers FROM users WHERE id = ?', (user2_id,))
-    user2_data = c.fetchone()
-    
-    conn.close()
-    
-    if not user1_data or not user2_data:
-        return jsonify({'error': 'One or both users not found'}), 404
-    
-    user1_id_db, user1_name, user1_gender, user1_answers_json = user1_data
-    user2_id_db, user2_name, user2_gender, user2_answers_json = user2_data
-    
-    user1_answers = json.loads(user1_answers_json)
-    user2_answers = json.loads(user2_answers_json)
-    
-    detailed_analysis = calculate_compatibility(user1_answers, user2_answers, detailed=True)
-    
-    return jsonify({
-        'user1': {
-            'id': user1_id_db,
-            'name': user1_name,
-            'gender': user1_gender
-        },
-        'user2': {
-            'id': user2_id_db,
-            'name': user2_name,
-            'gender': user2_gender
-        },
-        'analysis': detailed_analysis
-    })
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint"""
+    return jsonify({'status': 'ok', 'service': 'Wingmann Compatibility API'})
 
 if __name__ == '__main__':
-    app.run(debug=True)
-
+    # For cloud deployment, use PORT from environment or default to 5000
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=False, host='0.0.0.0', port=port, threaded=True)
